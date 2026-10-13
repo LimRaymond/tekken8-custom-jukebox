@@ -13,13 +13,16 @@ You still need:
 - Tekken 8 on Steam. In the app, choose the folder that ends in `steamapps\common\TEKKEN 8`.
 - [Wwise 2023.1](https://www.audiokinetic.com/download) with Windows Authoring. That is what turns each wav into the files Tekken plays. It is not inside the exe.
 
-Install Wwise in the normal Audiokinetic folder and the app finds `WwiseConsole.exe` on its own. In that Wwise project, create conversion settings named exactly `Vorbis Quality High`, `PCM`, `ADPCM`, and `Opus Quality High`, then point the app at the project once:
+In that Wwise project, create conversion settings named exactly `Vorbis Quality High`, `PCM`, `ADPCM`, and `Opus Quality High`.
+
+The Wwise Launcher usually installs the tools under `C:\Audiokinetic\Wwise_<version>\`, not under `Program Files`. The app does not look there by itself. Point it at `WwiseConsole.exe` and at the `.wproj` file inside the project folder (the file is not the folder next to it):
 
 ```bat
-setx WWISE_PROJECT "C:\path\to\your\project.wproj"
+setx WWISE_CONSOLE "C:\Audiokinetic\Wwise_2023.1.19.8928\Authoring\x64\Release\bin\WwiseConsole.exe"
+setx WWISE_PROJECT "C:\Users\You\Documents\WwiseProjects\CustomJukebox\CustomJukebox.wproj"
 ```
 
-Open a new terminal after `setx`, then start the exe again. Set `WWISE_CONSOLE` only if Wwise is not in `C:\Program Files (x86)\Audiokinetic`.
+Use your real version folder and Windows user name. Close the `.exe` completely and open it again. **Refresh** does not see a `setx` you ran while the app was open.
 
 Then follow **Use the app** from step 3.
 
@@ -38,14 +41,7 @@ Your song list is saved under `%USERPROFILE%\.local\share\tekken8-custom-jukebox
 ## Use the app
 
 1. Set the Tekken 8 folder. The usual Steam path ends in `steamapps\common\TEKKEN 8`. The status cards should show the game folder, the song catalog, and **Converter ready**.
-2. Install Wwise 2023.1 if **Wwise** is not ready. In that Wwise project, create conversion settings with these exact names: `Vorbis Quality High`, `PCM`, `ADPCM`, `Opus Quality High`. Point the app at that project:
-
-```bat
-set WWISE_CONSOLE=C:\Program Files (x86)\Audiokinetic\Wwise 2023.1.19.8808\Authoring\x64\Release\bin\WwiseConsole.exe
-set WWISE_PROJECT=C:\path\to\your\project.wproj
-```
-
-Use your real Wwise version folder and project path. You can also replace `wwise\CustomJukebox.wproj` with that project. The file in this repo is only a placeholder.
+2. If **Wwise** is not ready, set `WWISE_CONSOLE` and `WWISE_PROJECT` the same way as in **If you downloaded the .exe**, then start the app again from that terminal. `set` only lasts in the window where you typed it. The `wwise\CustomJukebox.wproj` file in this repo is a placeholder and does not count.
 
 3. Add wav files, or a folder of them. Duplicates are skipped.
 4. For each file, open the song list and pick the jukebox slot it should replace. **Duration** sorts shortest or longest. A slot another file already uses is marked **Used by**. Tekken 8 songs are not in the list.
@@ -58,4 +54,13 @@ Use your real Wwise version folder and project path. You can also replace `wwise
 
 **Remove mod** deletes that pak and nothing else. Close Tekken first, or Windows will say the file is in use.
 
-The program is `dist\Tekken8CustomJukebox.exe`. It still needs WebView2, a Tekken 8 install, and Wwise 2023.1 on that PC. People who only download the exe cannot install a mod until Wwise is set up the same way as above.
+## Build the .exe
+
+From the project folder, with the virtual environment above:
+
+```bat
+%USERPROFILE%\tekken8-jukebox-venv\Scripts\python -m pip install pyinstaller
+%USERPROFILE%\tekken8-jukebox-venv\Scripts\python -m PyInstaller --noconfirm --windowed --onefile --name Tekken8CustomJukebox --add-data "data;data" --add-data "app\ui\index.html;ui" --collect-all webview --collect-all repak app\main.py
+```
+
+Upload `dist\Tekken8CustomJukebox.exe` alone. People who download it still need Tekken 8 and Wwise, as in **If you downloaded the .exe**. WebView2 is already on Windows 11.

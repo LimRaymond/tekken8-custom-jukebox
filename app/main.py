@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 from app.catalog import load_catalog
@@ -10,8 +11,15 @@ from app.library import Library
 from app.ui.api import JukeboxApi
 
 
+def bundle_root() -> Path:
+    frozen_root = getattr(sys, "_MEIPASS", None)
+    if frozen_root:
+        return Path(frozen_root)
+    return Path(__file__).resolve().parents[1]
+
+
 def create_api(root: Path | None = None) -> JukeboxApi:
-    project_root = root or Path(__file__).resolve().parents[1]
+    project_root = root or bundle_root()
     catalog = load_catalog(project_root / "data" / "slots.json")
     storage = Path(os.environ.get("JUKEBOX_HOME", Path.home() / ".local" / "share" / "tekken8-custom-jukebox"))
     library = Library.load(catalog, storage)
