@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- JUKEBOX_PLACEHOLDER
+This file is not a working Wwise project. Install Wwise 2023.1, create a project,
+and add conversion settings with these exact names:
+  Vorbis Quality High
+  PCM
+  ADPCM
+  Opus Quality High
+Save that project over this path, or point WWISE_PROJECT at the .wproj file.
+The placeholder marker above must be gone or install stays disabled.
+-->
+<Project Name="CustomJukebox"/>

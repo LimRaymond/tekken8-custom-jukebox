@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tekken 8 Custom Jukebox</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #000000;
+      --card: #000000;
+      --ink: #f2f2f2;
+      --muted: #8a8a8a;
+      --line: #2a2a2a;
+      --accent: #f2f2f2;
+      --accent-ink: #000000;
+      --good: #9cbe7a;
+      --bad: #e07a5f;
+      --focus: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--ink);
+      font: 15px/1.45 "Segoe UI", system-ui, sans-serif;
+    }
+    body { min-height: 100vh; }
+    main { max-width: 1040px; margin: 0 auto; padding: 28px 24px 40px; }
+    header { margin-bottom: 20px; }
+    .eyebrow {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0 0 8px; font-size: 28px; font-weight: 650; letter-spacing: -0.02em; }
+    .lede { margin: 0; max-width: 62ch; color: var(--muted); }
+    .setup {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .pill {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      min-height: 72px;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--bad);
+      flex: none;
+    }
+    .pill.ok .dot { background: var(--good); }
+    .pill strong { display: block; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    .pill em { display: block; margin-top: 2px; font-style: normal; color: var(--ink); }
+    #drop {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 20px;
+      background: var(--card);
+      border: 1px dashed var(--line);
+      border-radius: 12px;
+      transition: border-color 200ms ease, background-color 200ms ease;
+    }
+    #drop.hot, #drop.is-busy { border-color: #f2f2f2; background: #000000; }
+    body.is-busy { cursor: progress; }
+    #drop p { margin: 0; font-weight: 600; }
+    #drop span { display: block; margin-top: 4px; color: var(--muted); font-weight: 400; font-size: 13px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button, select {
+      min-height: 40px;
+      padding: 8px 14px;
+      color: var(--ink);
+      background: #000000;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      cursor: pointer;
+      transition: border-color 200ms ease, background-color 200ms ease;
+    }
+    button:hover, select:hover { border-color: #f2f2f2; }
+    button:focus-visible, select:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+    button.primary {
+      background: #000000;
+      color: #f2f2f2;
+      border-color: #f2f2f2;
+      font-weight: 650;
+    }
+    button.primary:hover { background: #111111; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button.is-loading:disabled { opacity: 1; cursor: progress; }
+    button.is-loading { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+    button.is-loading::before {
+      content: "";
+      width: 12px;
+      height: 12px;
+      border: 2px solid #3a3a3a;
+      border-top-color: #f2f2f2;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: visible; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .col-song { width: 24%; }
+    .col-length { width: 72px; }
+    .col-actions { width: 132px; }
+    th, td { padding: 12px 10px; text-align: left; vertical-align: middle; }
+    .song-title { overflow-wrap: anywhere; }
+    .slot-cell { min-width: 0; }
+    .slot-row { display: flex; align-items: center; gap: 10px; }
+    .slot-row .picker { flex: 1 1 auto; min-width: 0; }
+    .slot-row .label { flex: 0 0 112px; width: 112px; }
+    .chip {
+      display: inline-block;
+      margin-bottom: 6px;
+      padding: 2px 8px;
+      border: 1px solid #3a3a3a;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    th, td { padding: 12px 14px; text-align: left; vertical-align: middle; }
+    th {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--line);
+    }
+    td { color: var(--ink); border-bottom: 1px solid var(--line); }
+    #song-count { margin: 0; padding: 12px 14px 0; color: var(--muted); font-size: 13px; }
+    tr:last-child td { border-bottom: 0; }
+    .picker { position: relative; min-width: 0; max-width: 100%; }
+    .picker-toggle { width: 100%; text-align: left; white-space: normal; }
+    .picker-panel {
+      position: fixed;
+      z-index: 40;
+      width: 360px;
+      padding: 10px;
+      background: #000000;
+      border: 1px solid #3a3a3a;
+      border-radius: 10px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+      overscroll-behavior: contain;
+    }
+    .picker-tools { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+    .picker-search {
+      display: block;
+      width: auto;
+      flex: 1 1 auto;
+      min-width: 0;
+      margin: 0;
+      min-height: 36px;
+      padding: 8px 12px;
+      color: #f2f2f2;
+      background: #000000;
+      border: 1px solid #3a3a3a;
+      border-radius: 8px;
+      font: inherit;
+    }
+    .picker-search::placeholder { color: #8a8a8a; }
+    .picker-search:focus { outline: none; border-color: #f2f2f2; }
+    .picker-all, .picker-sort { flex: 0 0 auto; min-height: 36px; padding: 8px 10px; font-size: 12px; white-space: nowrap; }
+    .picker-sort[aria-pressed="true"] { border-color: #f2f2f2; }
+    .picker-list { max-height: 280px; overflow: auto; overscroll-behavior: contain; }
+    .picker-section { margin-top: 6px; }
+    .picker-section:first-child { margin-top: 0; }
+    .picker-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      margin: 0;
+      padding: 6px 8px;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 6px;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-align: left;
+      cursor: pointer;
+    }
+    .picker-group:hover { background: #161616; color: #f2f2f2; }
+    .picker-group .chevron { width: 12px; height: 12px; flex: 0 0 auto; }
+    .picker-section.collapsed .chevron { transform: rotate(-90deg); }
+    .picker-game { min-width: 0; }
+    .picker-count { margin-left: auto; color: #6e6e6e; font-weight: 550; letter-spacing: 0; }
+    .picker-section.collapsed .picker-songs { display: none; }
+    .picker-option {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      column-gap: 12px;
+      row-gap: 2px;
+      width: 100%;
+      min-height: 32px;
+      margin: 0;
+      padding: 6px 8px;
+      color: var(--ink);
+      background: transparent;
+      border: 0;
+      border-radius: 6px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .picker-title { grid-column: 1; grid-row: 1; min-width: 0; overflow-wrap: break-word; }
+    .picker-game-tag { display: block; color: #6e6e6e; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .picker-used { grid-column: 1 / -1; grid-row: 2; min-width: 0; overflow-wrap: anywhere; color: #c4a574; font-size: 12px; }
+    .picker-option.taken { background: #101010; }
+    .picker-duration { grid-column: 2; grid-row: 1; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .picker-option:hover, .picker-option[aria-selected="true"] { background: #161616; border-color: transparent; }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .actions button { width: 100%; padding: 8px 10px; justify-content: center; }
+    button.preview { display: inline-flex; align-items: center; gap: 8px; }
+    td.fit { text-align: left; white-space: nowrap; }
+    button.preview svg { width: 14px; height: 14px; flex: none; }
+    .label {
+      display: inline-block;
+      flex: none;
+      padding: 3px 8px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .label.fits { color: var(--good); }
+    .label.cuts, .label.repeats, .label.unassigned { color: var(--bad); }
+    footer {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    #notice { flex: 1 1 240px; min-width: 0; margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+    .game-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .game-line span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    #game-path {
+      flex: 1;
+      min-width: 0;
+      min-height: 40px;
+      padding: 8px 12px;
+      color: var(--ink);
+      background: #000000;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+    }
+    #game-path:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 2px;
+    }
+    .empty { margin: 0; padding: 28px 16px; color: var(--muted); text-align: center; }
+    @media (max-width: 800px) {
+      .setup, #drop { grid-template-columns: 1fr; display: grid; }
+      #drop { align-items: stretch; }
+      h1 { font-size: 24px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #drop, button, select { transition: none; }
+      button.is-loading::before { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="setup" id="setup" aria-label="Setup">
+      <div class="pill bad"><span class="dot" aria-hidden="true"></span><div><strong>Game</strong><em>Checking…</em></div></div>
+      <div class="pill bad"><span class="dot" aria-hidden="true"></span><div><strong>Catalog</strong><em>Checking…</em></div></div>
+      <div class="pill bad"><span class="dot" aria-hidden="true"></span><div><strong>Wwise</strong><em>Checking…</em></div></div>
+    </section>
+    <label class="game-line" for="game-path">
+      <span>Tekken folder</span>
+      <input id="game-path" type="text" spellcheck="false" placeholder="Choose the TEKKEN 8 folder" />
+      <button type="button" id="game-folder">Browse</button>
+    </label>
+    <section id="drop">
+      <p>Drop wav files here<span id="drop-hint">They replace an existing jukebox song. The menu name stays the same.</span></p>
+      <div class="row">
+        <button type="button" id="browse">Add wav files</button>
+        <button type="button" id="browse-folder">Add wav folder</button>
+        <button type="button" id="refresh">Refresh</button>
+      </div>
+    </section>
+    <section class="panel">
+      <p id="song-count"></p>
+        <table>
+          <colgroup>
+            <col class="col-song" />
+            <col class="col-length" />
+            <col />
+            <col class="col-actions" />
+          </colgroup>
+        <thead>
+          <tr>
+            <th>Song</th>
+            <th>Length</th>
+            <th>In-game name</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="songs"></tbody>
+      </table>
+      <p class="empty" id="empty">No songs yet.</p>
+    </section>
+    <footer>
+      <p id="notice" role="status"></p>
+      <button type="button" id="uninstall">Remove mod</button>
+      <button type="button" class="primary" id="install">Install mod</button>
+    </footer>
+  </main>
+  <script>
+    const songs = document.getElementById("songs");
+    const empty = document.getElementById("empty");
+    const notice = document.getElementById("notice");
+    const setup = document.getElementById("setup");
+    const install = document.getElementById("install");
+    const uninstall = document.getElementById("uninstall");
+    const browse = document.getElementById("browse");
+    const browseFolder = document.getElementById("browse-folder");
+    const refreshButton = document.getElementById("refresh");
+    const drop = document.getElementById("drop");
+    const dropHint = document.getElementById("drop-hint");
+    const dropHintDefault = dropHint.textContent;
+    const gamePath = document.getElementById("game-path");
+    const gameFolder = document.getElementById("game-folder");
+    let catalogSlots = [];
+    let libraryTracks = [];
+    let playingId = null;
+    const openGames = new Set();
+    let sectionMode = null;
+    let sortMode = "game";
+    const gameOrder = ["TEKKEN", "TEKKEN 2", "TEKKEN 3", "TEKKEN 4", "TEKKEN 5", "TEKKEN 6", "TEKKEN 7", "TEKKEN 8", "TEKKEN TAG", "TEKKEN TAG 2", "TEKKEN REVOLUTION"];
+
+    function gameOf(name) {
+      const parts = String(name).split("/");
+      return parts.length > 1 ? parts[parts.length - 1].trim() : "Other";
+    }
+
+    function songTitle(name) {
+      const parts = String(name).split("/");
+      return parts.length > 1 ? parts.slice(0, -1).join("/").trim() : name;
+    }
+
+    function durationSeconds(value) {
+      const match = String(value || "0:00").match(/(\d+):(\d{2})/);
+      return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
+    }
+
+    function visibleSlots(slots, query) {
+      const needle = query.trim().toLowerCase();
+      return slots.filter((slot) => {
+        if (slot.disabled) return false;
+        const title = songTitle(slot.name);
+        const game = gameOf(slot.name);
+        return !needle || `${title} ${game} ${slot.name} ${slot.duration || ""}`.toLowerCase().includes(needle);
+      });
+    }
+
+    function groupedSlots(slots, query) {
+      const groups = new Map();
+      for (const slot of visibleSlots(slots, query)) {
+        const game = gameOf(slot.name);
+        if (!groups.has(game)) groups.set(game, []);
+        groups.get(game).push(slot);
+      }
+      return [...groups.keys()].sort((left, right) => {
+        const leftIndex = gameOrder.indexOf(left);
+        const rightIndex = gameOrder.indexOf(right);
+        if (leftIndex === -1 && rightIndex === -1) return left.localeCompare(right);
+        if (leftIndex === -1) return 1;
+        if (rightIndex === -1) return -1;
+        return leftIndex - rightIndex;
+      }).map((name) => ({ name, slots: groups.get(name) }));
+    }
+
+    function placePicker(picker) {
+      const toggle = picker.querySelector(".picker-toggle");
+      const panel = picker.querySelector(".picker-panel");
+      const rect = toggle.getBoundingClientRect();
+      const width = Math.max(rect.width, 320);
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
+      panel.style.width = width + "px";
+      panel.style.left = left + "px";
+      const spaceBelow = window.innerHeight - rect.bottom;
+      if (spaceBelow < 240 && rect.top > spaceBelow) {
+        panel.style.top = "auto";
+        panel.style.bottom = (window.innerHeight - rect.top + 6) + "px";
+      } else {
+        panel.style.bottom = "auto";
+        panel.style.top = (rect.bottom + 6) + "px";
+      }
+    }
+
+    function closePickers() {
+      for (const picker of songs.querySelectorAll(".picker.open")) {
+        picker.classList.remove("open");
+        picker.querySelector(".picker-panel").hidden = true;
+        picker.querySelector(".picker-toggle").setAttribute("aria-expanded", "false");
+      }
+    }
+
+    function slotOption(slot, selected, trackId) {
+      const owner = libraryTracks.find((track) => track.slot_id === slot.id && track.id !== trackId);
+      const used = owner ? `Used by ${owner.name}` : "";
+      const gameTag = sortMode === "game" ? "" : `<span class="picker-game-tag">${esc(gameOf(slot.name))}</span>`;
+      return `<button type="button" class="picker-option${used ? " taken" : ""}" data-slot="${esc(slot.id)}" aria-selected="${slot.id === selected ? "true" : "false"}"><span class="picker-title">${esc(songTitle(slot.name))}${gameTag}</span>${used ? `<span class="picker-used">${esc(used)}</span>` : ""}<span class="picker-duration">${esc(slot.duration || "")}</span></button>`;
+    }
+
+    function fillPicker(picker, query) {
+      const list = picker.querySelector(".picker-list");
+      const selected = picker.dataset.slot || "";
+      const trackId = picker.dataset.track || "";
+      const searching = query.trim().length > 0;
+      const chevron = `<svg class="chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6.2 8 9.8l3.5-3.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+      if (sortMode === "game") {
+        const groups = groupedSlots(catalogSlots, query);
+        list.innerHTML = groups.map((group) => {
+          const open = sectionMode === "open" || (sectionMode !== "closed" && (searching || openGames.has(group.name)));
+          return `
+            <div class="picker-section${open ? "" : " collapsed"}" data-game="${esc(group.name)}">
+              <button type="button" class="picker-group" aria-expanded="${open ? "true" : "false"}" aria-label="${esc(group.name)}, ${group.slots.length} song${group.slots.length === 1 ? "" : "s"}">${chevron}<span class="picker-game">${esc(group.name)}</span><span class="picker-count">${group.slots.length}</span></button>
+              <div class="picker-songs">${group.slots.map((slot) => slotOption(slot, selected, trackId)).join("")}</div>
+            </div>`;
+        }).join("") || `<p class="empty">No matching songs.</p>`;
+      } else {
+        const slots = visibleSlots(catalogSlots, query).sort((left, right) => {
+          const diff = durationSeconds(left.duration) - durationSeconds(right.duration);
+          return sortMode === "short" ? diff : -diff;
+        });
+        list.innerHTML = slots.map((slot) => slotOption(slot, selected, trackId)).join("") || `<p class="empty">No matching songs.</p>`;
+      }
+      refreshSectionButton(picker);
+      refreshSortButton(picker);
+    }
+
+    function refreshSortButton(picker) {
+      const button = picker.querySelector(".picker-sort");
+      const labels = { game: "Duration", short: "Shortest", long: "Longest" };
+      button.textContent = labels[sortMode];
+      button.setAttribute("aria-pressed", sortMode === "game" ? "false" : "true");
+    }
+
+    function cycleSort(picker) {
+      sortMode = sortMode === "game" ? "short" : sortMode === "short" ? "long" : "game";
+      fillPicker(picker, picker.querySelector(".picker-search").value);
+    }
+
+    function refreshSectionButton(picker) {
+      const button = picker.querySelector(".picker-all");
+      const sections = [...picker.querySelectorAll(".picker-section")];
+      const allCollapsed = sections.length === 0 || sections.every((section) => section.classList.contains("collapsed"));
+      button.disabled = sortMode !== "game" || sections.length === 0;
+      button.textContent = allCollapsed ? "Expand all" : "Collapse all";
+      button.setAttribute("aria-pressed", allCollapsed ? "false" : "true");
+    }
+
+    function toggleAllSections(picker) {
+      const sections = [...picker.querySelectorAll(".picker-section")];
+      const expand = sections.every((section) => section.classList.contains("collapsed"));
+      sectionMode = expand ? "open" : "closed";
+      openGames.clear();
+      if (expand) {
+        for (const section of sections) openGames.add(section.dataset.game);
+      }
+      fillPicker(picker, picker.querySelector(".picker-search").value);
+    }
+
+    const playIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.2v9.6L13 8 5 3.2z" fill="currentColor"/></svg>`;
+    const stopIcon = `<svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3.5" y="3.5" width="9" height="9" rx="1" fill="currentColor"/></svg>`;
+
+    function pill(title, text, ok) {
+      return `<div class="pill ${ok ? "ok" : "bad"}"><span class="dot" aria-hidden="true"></span><div><strong>${title}</strong><em>${text}</em></div></div>`;
+    }
+
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, (ch) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
+      }[ch]));
+    }
+
+    function render(state) {
+      const s = state.setup;
+      setup.innerHTML = [
+        pill("Game", !s.game_found ? "Folder not found" : (s.version_matches ? (s.game_version || "Folder found") : "Version does not match"), s.game_found && s.version_matches),
+        pill("Catalog", s.catalog_ready ? esc(s.catalog_version || (s.slot_count + " songs")) : "Empty", s.catalog_ready),
+        pill("Wwise", s.wwise_found && s.project_found ? "Converter ready" : "Not ready", s.wwise_found && s.project_found)
+      ].join("");
+      notice.textContent = state.notice || (s.messages || []).join(" ");
+      install.disabled = !s.install_allowed;
+      catalogSlots = state.slots;
+      if (document.activeElement !== gamePath) {
+        gamePath.value = state.game_path || "";
+      }
+      gameFolder.textContent = gamePath.value ? "Change" : "Browse";
+      const songCount = document.getElementById("song-count");
+      const tracks = Array.from(state.tracks || []);
+      libraryTracks = tracks;
+      const slots = Array.from(state.slots || []);
+      catalogSlots = slots;
+      songCount.textContent = tracks.length ? `${tracks.length} song${tracks.length === 1 ? "" : "s"}` : "";
+      songs.innerHTML = "";
+      empty.hidden = false;
+      empty.textContent = tracks.length ? "" : "No songs yet.";
+      try {
+        for (const track of tracks) {
+          const row = document.createElement("tr");
+          const current = slots.find((slot) => slot.id === track.slot_id);
+          const game = current ? gameOf(current.name) : "";
+          const title = current ? songTitle(current.name) : "Choose a song";
+          const kind = String(track.label || "").startsWith("cuts") ? "cuts" : String(track.label || "").startsWith("repeats") ? "repeats" : track.label;
+          const playing = playingId === track.id;
+          row.innerHTML = `
+            <td class="song-title">${esc(track.name)}</td>
+            <td>${esc(track.duration)}</td>
+            <td class="slot-cell">
+              ${game ? `<span class="chip">${esc(game)}</span>` : ""}
+              <div class="slot-row">
+                <div class="picker" data-track="${esc(track.id)}" data-slot="${esc(track.slot_id || "")}">
+                  <button type="button" class="picker-toggle" aria-haspopup="listbox" aria-expanded="false">${esc(title)}</button>
+                  <div class="picker-panel" hidden>
+                    <div class="picker-tools">
+                      <input class="picker-search" type="search" placeholder="Search songs" aria-label="Search ${esc(track.name)} slot" />
+                      <button type="button" class="picker-sort" aria-pressed="false">Duration</button>
+                      <button type="button" class="picker-all" aria-pressed="false">Expand all</button>
+                    </div>
+                    <div class="picker-list"></div>
+                  </div>
+                </div>
+                <span class="label ${kind}">${esc(track.label || "")}</span>
+              </div>
+            </td>
+            <td class="actions">
+              <button type="button" class="preview" data-preview="${esc(track.id)}" data-playing="${playing ? "true" : "false"}" aria-label="${playing ? "Stop" : "Preview"}">${playing ? stopIcon : playIcon}<span>${playing ? "Stop" : "Preview"}</span></button>
+              <button type="button" data-remove="${esc(track.id)}">Remove</button>
+            </td>`;
+          songs.appendChild(row);
+        }
+        empty.hidden = tracks.length > 0;
+      } catch (error) {
+        empty.hidden = false;
+        empty.textContent = error && error.message ? error.message : String(error);
+      }
+    }
+
+    const busyLabels = {
+      wavs: "Adding songs…",
+      folder: "Adding folder…",
+      drop: "Adding songs…",
+      install: "Installing mod…",
+    };
+
+    function setBusy(kind) {
+      const busy = !!kind;
+      document.body.classList.toggle("is-busy", busy);
+      drop.classList.toggle("is-busy", busy);
+      drop.setAttribute("aria-busy", busy ? "true" : "false");
+      for (const button of [browse, browseFolder, install, uninstall, refreshButton]) {
+        button.disabled = busy;
+        button.classList.remove("is-loading");
+      }
+      browse.textContent = kind === "wavs" || kind === "drop" ? busyLabels[kind] : "Add wav files";
+      browseFolder.textContent = kind === "folder" ? busyLabels.folder : "Add wav folder";
+      install.textContent = kind === "install" ? busyLabels.install : "Install mod";
+      const active = kind === "folder" ? browseFolder : kind === "install" ? install : kind ? browse : null;
+      if (active) active.classList.add("is-loading");
+      dropHint.textContent = kind === "wavs" || kind === "folder" || kind === "drop" ? busyLabels[kind] : dropHintDefault;
+      if (kind) notice.textContent = busyLabels[kind];
+    }
+
+    async function withBusy(kind, action) {
+      if (document.body.classList.contains("is-busy")) return;
+      setBusy(kind);
+      try {
+        const state = await action();
+        setBusy(null);
+        if (state) render(state);
+      } catch (error) {
+        setBusy(null);
+        notice.textContent = error && error.message ? error.message : String(error);
+      }
+    }
+
+    async function refresh() {
+      if (!window.pywebview) return;
+      render(await window.pywebview.api.get_state());
+    }
+
+    songs.addEventListener("change", async (event) => {
+      const select = event.target.closest("select");
+      if (!select) return;
+      render(await window.pywebview.api.set_slot(select.dataset.track, select.value));
+    });
+    songs.addEventListener("click", async (event) => {
+      const toggle = event.target.closest(".picker-toggle");
+      if (toggle) {
+        const picker = toggle.closest(".picker");
+        const willOpen = !picker.classList.contains("open");
+        closePickers();
+        if (willOpen) {
+          picker.classList.add("open");
+          picker.querySelector(".picker-panel").hidden = false;
+          toggle.setAttribute("aria-expanded", "true");
+          const search = picker.querySelector(".picker-search");
+          search.value = "";
+          fillPicker(picker, "");
+          placePicker(picker);
+          search.focus();
+        }
+        return;
+      }
+      const sortButton = event.target.closest(".picker-sort");
+      if (sortButton) {
+        cycleSort(sortButton.closest(".picker"));
+        return;
+      }
+      const allButton = event.target.closest(".picker-all");
+      if (allButton) {
+        toggleAllSections(allButton.closest(".picker"));
+        return;
+      }
+      const group = event.target.closest(".picker-group");
+      if (group) {
+        const picker = group.closest(".picker");
+        const section = group.closest(".picker-section");
+        const game = section.dataset.game;
+        const collapsed = section.classList.toggle("collapsed");
+        group.setAttribute("aria-expanded", collapsed ? "false" : "true");
+        if (sectionMode === "open" && collapsed) {
+          sectionMode = null;
+          openGames.clear();
+          for (const item of picker.querySelectorAll(".picker-section:not(.collapsed)")) openGames.add(item.dataset.game);
+        } else if (sectionMode === "closed" && !collapsed) {
+          sectionMode = null;
+          openGames.clear();
+          openGames.add(game);
+        } else if (collapsed) {
+          openGames.delete(game);
+        } else {
+          openGames.add(game);
+        }
+        refreshSectionButton(picker);
+        return;
+      }
+      const option = event.target.closest(".picker-option");
+      if (option) {
+        const picker = option.closest(".picker");
+        closePickers();
+        render(await window.pywebview.api.set_slot(picker.dataset.track, option.dataset.slot));
+        return;
+      }
+      const preview = event.target.closest("[data-preview]");
+      const remove = event.target.closest("[data-remove]");
+      if (preview) {
+        const id = preview.dataset.preview;
+        try {
+          if (preview.dataset.playing === "true") {
+            playingId = null;
+            render(await window.pywebview.api.stop_preview());
+          } else {
+            notice.textContent = "Preparing preview…";
+            const state = await window.pywebview.api.preview(id);
+            playingId = state.notice && state.notice.startsWith("Playing") ? id : null;
+            render(state);
+          }
+        } catch (error) {
+          playingId = null;
+          notice.textContent = error && error.message ? error.message : String(error);
+        }
+      }
+      if (remove) {
+        if (remove.dataset.remove === playingId) playingId = null;
+        render(await window.pywebview.api.remove_track(remove.dataset.remove));
+      }
+    });
+    songs.addEventListener("input", (event) => {
+      if (!event.target.classList.contains("picker-search")) return;
+      fillPicker(event.target.closest(".picker"), event.target.value);
+      placePicker(event.target.closest(".picker"));
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest(".picker")) closePickers();
+    });
+    document.addEventListener("wheel", (event) => {
+      const panel = event.target.closest(".picker-panel");
+      if (!panel || panel.hidden) return;
+      const list = panel.querySelector(".picker-list");
+      if (!list || !list.contains(event.target)) {
+        event.preventDefault();
+        return;
+      }
+      const max = list.scrollHeight - list.clientHeight;
+      if (max <= 0 || (event.deltaY < 0 && list.scrollTop <= 0) || (event.deltaY > 0 && list.scrollTop >= max - 1)) {
+        event.preventDefault();
+      }
+    }, { passive: false });
+    window.addEventListener("scroll", (event) => {
+      const target = event.target;
+      if (target instanceof Element && target.closest(".picker-panel")) return;
+      closePickers();
+    }, true);
+    document.getElementById("refresh").addEventListener("click", async () => {
+      closePickers();
+      render(await window.pywebview.api.refresh());
+    });
+    install.addEventListener("click", () => withBusy("install", () => window.pywebview.api.install()));
+    uninstall.addEventListener("click", async () => {
+      render(await window.pywebview.api.uninstall());
+    });
+    browse.addEventListener("click", () => withBusy("wavs", () => window.pywebview.api.choose_wavs()));
+    browseFolder.addEventListener("click", () => withBusy("folder", () => window.pywebview.api.choose_wav_folder()));
+    gameFolder.addEventListener("click", async () => {
+      render(await window.pywebview.api.choose_game_dir());
+    });
+    gamePath.addEventListener("change", async () => {
+      render(await window.pywebview.api.set_game_dir(gamePath.value.trim()));
+    });
+    gamePath.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        gamePath.blur();
+      }
+    });
+    drop.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      drop.classList.add("hot");
+    });
+    drop.addEventListener("dragleave", () => drop.classList.remove("hot"));
+    drop.addEventListener("drop", async (event) => {
+      event.preventDefault();
+      drop.classList.remove("hot");
+      const paths = [];
+      const blobs = [];
+      for (const file of event.dataTransfer.files) {
+        if (!file.name.toLowerCase().endsWith(".wav")) continue;
+        if (file.path) paths.push(file.path);
+        else blobs.push(file);
+      }
+      if (!paths.length && !blobs.length) return;
+      await withBusy("drop", async () => {
+        let state = null;
+        if (paths.length) state = await window.pywebview.api.add_paths(paths);
+        for (const file of blobs) {
+          const bytes = new Uint8Array(await file.arrayBuffer());
+          let binary = "";
+          for (let index = 0; index < bytes.length; index += 0x4000) {
+            binary += String.fromCharCode(...bytes.subarray(index, index + 0x4000));
+          }
+          state = await window.pywebview.api.add_wav_base64(file.name, btoa(binary));
+        }
+        return state;
+      });
+    });
+    window.addEventListener("pywebviewready", refresh);
+    refresh();
+  </script>
+</body>
+</html>

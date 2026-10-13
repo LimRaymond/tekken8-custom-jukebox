@@ -1,0 +1,28 @@
+[project]
+name = "tekken8-custom-jukebox"
+version = "0.1.0"
+description = "Drop WAV files into a Tekken 8 jukebox mod."
+requires-python = ">=3.11"
+dependencies = [
+  "numpy",
+  "scipy",
+  "pywebview",
+  "repak",
+]
+
+[project.scripts]
+tekken8-jukebox = "app.main:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.setuptools.package-data]
+app = ["ui/index.html"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
